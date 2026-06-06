@@ -1,0 +1,15 @@
+.venv/
+.git/
+__pycache__/
+*.pyc
+.env
+node_modules/
+sales-dashboard/node_modules/
+sales-dashboard/build/
+v1_archive/
+err.log
+pip_list.txt
+*.png
+diagram_*.png
+.vscode/
+.pyre/
