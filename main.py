@@ -102,6 +102,7 @@ def verify_api_key(api_key: str = Security(api_key_header)):
         raise HTTPException(status_code=401, detail="Missing API Key")
     
     with engine.connect() as conn:
+        # 1. Create table and commit immediately
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS api_keys (
                 id SERIAL PRIMARY KEY,
@@ -109,19 +110,22 @@ def verify_api_key(api_key: str = Security(api_key_header)):
                 user_id VARCHAR(50)
             )
         """))
-        # Seed a default admin key from environment variable (never hardcode this!)
-        # Set ADMIN_API_KEY in your .env file.
+        conn.commit()
+        
+        # 2. Insert seed key and commit
         seed_key = os.environ.get("ADMIN_API_KEY")
         if seed_key:
             try:
                 conn.execute(
-                    text("INSERT INTO api_keys (key, user_id) VALUES (:k, 'admin_user') ON CONFLICT DO NOTHING"),
+                    text("INSERT INTO api_keys (key, user_id) VALUES (:k, 'admin_user') ON CONFLICT (key) DO NOTHING"),
                     {"k": seed_key}
                 )
                 conn.commit()
             except Exception as e:
+                conn.rollback() # VERY IMPORTANT to rollback before the next query if it failed
                 print(f"Seed insert skipped: {e}")
             
+        # 3. Check the key
         res = conn.execute(text("SELECT user_id FROM api_keys WHERE key = :k"), {"k": api_key}).fetchone()
         if not res:
             raise HTTPException(status_code=401, detail="Invalid API Key")
